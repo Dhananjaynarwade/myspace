@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}MySpace{% endblock %}</title>
+
+  <!-- PWA -->
+   {% load static %}
+  <link rel="manifest" href="/static/manifest.json" />
+<meta name="theme-color" content="#0f172a">
+
+  <meta name="theme-color" content="#0f172a"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png"/>
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface: '#0f172a',
+            card: '#1e293b',
+            border: '#334155',
+            accent: '#6366f1',
+            'accent-light': '#818cf8',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    body { background-color: #0f172a; color: #e2e8f0; }
+    .card { background: #1e293b; border: 1px solid #334155; }
+    .btn-primary { background: #6366f1; color: white; }
+    .btn-primary:hover { background: #4f46e5; }
+    .btn-danger { background: transparent; color: #f87171; border: 1px solid #f87171; }
+    .btn-danger:hover { background: #f87171; color: white; }
+    .input-field {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      border-radius: 0.5rem;
+      padding: 0.6rem 0.9rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus { border-color: #6366f1; }
+    .nav-link { color: #94a3b8; transition: color 0.2s; }
+    .nav-link:hover, .nav-link.active { color: #818cf8; }
+    .tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      background: #312e81;
+      color: #a5b4fc;
+      padding: 2px 8px;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen font-sans">
+
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-50 border-b border-slate-800" style="background: rgba(15,23,42,0.95); backdrop-filter: blur(8px);">
+    <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+      <span class="font-bold text-lg text-white tracking-tight">⚡ MySpace</span>
+      <div class="flex gap-6 text-sm font-medium">
+        <a href="{% url 'link_list' %}" class="nav-link {% if request.resolver_match.app_name == 'links' or 'link' in request.resolver_match.url_name %}active{% endif %}">
+          🔗 Links
+        </a>
+        <a href="{% url 'note_list' %}" class="nav-link {% if 'note' in request.resolver_match.url_name %}active{% endif %}">
+          📝 Notes
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="max-w-3xl mx-auto px-4 py-8">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="mb-4 px-4 py-3 rounded-lg text-sm bg-indigo-900 text-indigo-200 border border-indigo-700">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- PWA Install Banner -->
+  <div id="install-banner" class="hidden fixed bottom-4 left-4 right-4 max-w-sm mx-auto card rounded-xl p-4 shadow-2xl z-50">
+    <p class="text-sm text-slate-300 mb-3">Install MySpace as an app for quick access.</p>
+    <div class="flex gap-2">
+      <button id="install-btn" class="btn-primary text-sm px-4 py-2 rounded-lg font-medium flex-1">Install App</button>
+      <button id="dismiss-btn" class="text-slate-400 text-sm px-3 py-2 rounded-lg hover:text-white">Later</button>
+    </div>
+  </div>
+
+  <!-- Service Worker + PWA Install -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/sw.js');
+    }
+
+    let deferredPrompt;
+    const banner = document.getElementById('install-banner');
+    const installBtn = document.getElementById('install-btn');
+    const dismissBtn = document.getElementById('dismiss-btn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (!localStorage.getItem('pwa-dismissed')) banner.classList.remove('hidden');
+    });
+
+    installBtn?.addEventListener('click', async () => {
+      banner.classList.add('hidden');
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    });
+
+    dismissBtn?.addEventListener('click', () => {
+      banner.classList.add('hidden');
+      localStorage.setItem('pwa-dismissed', '1');
+    });
+
+
+    
+  </script>
+
+</body>
+</html>

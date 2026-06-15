@@ -1,0 +1,375 @@
+{% extends 'base.html' %}
+{% block title %}New Note — MySpace{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="{% url 'note_list' %}" class="text-slate-400 hover:text-white transition-colors">← Back</a>
+  <h1 class="text-2xl font-bold text-white">New Note</h1>
+</div>
+
+<div class="card rounded-xl p-6">
+  <form method="POST" enctype="multipart/form-data" class="flex flex-col gap-5" id="note-form">
+    {% csrf_token %}
+
+    <div>
+      <label class="block text-sm font-medium text-slate-400 mb-2">Title</label>
+      <input type="text" name="title" placeholder="Note title..." class="input-field" required autofocus />
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-400 mb-2">Content</label>
+      <textarea name="content" placeholder="Write your note here..." rows="5" class="input-field resize-none" required></textarea>
+    </div>
+
+    <!-- IMAGE SECTION -->
+    <div>
+      <label class="block text-sm font-medium text-slate-400 mb-3">
+        Screenshot / Image <span class="text-slate-600">(optional)</span>
+      </label>
+
+      <!-- Tabs -->
+      <div class="flex gap-1 mb-3 bg-slate-900 rounded-lg p-1" style="width:fit-content">
+        <button type="button" class="tab-btn active" data-tab="dragdrop">📂 Browse / Drop</button>
+        <button type="button" class="tab-btn" data-tab="paste">📋 Paste</button>
+        <button type="button" class="tab-btn" data-tab="webcam">📷 Webcam</button>
+        <button type="button" class="tab-btn" data-tab="url">🔗 URL</button>
+        <button type="button" class="tab-btn" data-tab="multiple">🖼️ Multiple</button>
+      </div>
+
+      <!-- Hidden file input used by drag/drop/paste/webcam tabs -->
+      <input type="file" name="screenshot" accept="image/*" class="hidden" id="screenshot-input"/>
+
+      <!-- TAB: Browse / Drag Drop -->
+      <div class="tab-panel" id="tab-dragdrop">
+        <div id="drop-zone" class="border-2 border-dashed border-slate-700 rounded-xl p-8 text-center cursor-pointer transition-all hover:border-indigo-600">
+          <div id="drop-placeholder">
+            <p class="text-slate-400 text-sm font-medium mb-1">📂 Click to browse or drag & drop an image here</p>
+            <p class="text-slate-600 text-xs">PNG, JPG, WEBP, GIF supported</p>
+          </div>
+          <div id="drop-preview-box" class="hidden">
+            <img id="drop-preview" class="max-h-48 mx-auto rounded-lg border border-slate-600 mb-2"/>
+            <p id="drop-file-label" class="text-green-400 text-xs font-medium"></p>
+            <button type="button" id="drop-clear" class="mt-2 text-xs text-red-400 hover:text-red-300 underline">Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Paste -->
+      <div class="tab-panel hidden" id="tab-paste">
+        <div id="paste-zone" class="border-2 border-dashed border-slate-700 rounded-xl p-8 text-center cursor-pointer transition-all hover:border-indigo-600" tabindex="0">
+          <div id="paste-placeholder">
+            <p class="text-slate-400 text-sm font-medium mb-1">📋 Click here, then press Ctrl+V to paste a screenshot</p>
+            <p class="text-slate-600 text-xs">Take a screenshot with Win+Shift+S, then paste here</p>
+          </div>
+          <div id="paste-preview-box" class="hidden">
+            <img id="paste-preview" class="max-h-48 mx-auto rounded-lg border border-slate-600 mb-2"/>
+            <p class="text-green-400 text-xs font-medium">✅ Image pasted successfully!</p>
+            <button type="button" id="paste-clear" class="mt-2 text-xs text-red-400 hover:text-red-300 underline">Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Webcam -->
+      <div class="tab-panel hidden" id="tab-webcam">
+        <div class="border-2 border-dashed border-slate-700 rounded-xl p-4 text-center">
+          <video id="webcam-video" class="hidden mx-auto rounded-lg mb-3" style="max-height:200px" autoplay playsinline></video>
+          <canvas id="webcam-canvas" class="hidden mx-auto rounded-lg mb-3" style="max-height:200px"></canvas>
+          <img id="webcam-preview" class="hidden mx-auto rounded-lg border border-slate-600 mb-2" style="max-height:200px"/>
+          <div id="webcam-placeholder">
+            <p class="text-slate-400 text-sm font-medium mb-3">📷 Take a photo using your webcam</p>
+            <button type="button" id="webcam-start" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">Start Webcam</button>
+          </div>
+          <div id="webcam-controls" class="hidden flex gap-3 justify-center">
+            <button type="button" id="webcam-capture" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">📸 Capture Photo</button>
+            <button type="button" id="webcam-stop" class="px-4 py-2 rounded-lg text-sm text-slate-400 border border-slate-600 hover:text-white">Stop</button>
+          </div>
+          <div id="webcam-retake-controls" class="hidden flex gap-3 justify-center">
+            <p class="text-green-400 text-xs font-medium mb-2 w-full">✅ Photo captured!</p>
+            <button type="button" id="webcam-retake" class="px-4 py-2 rounded-lg text-sm text-slate-400 border border-slate-600 hover:text-white">Retake</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: URL -->
+      <div class="tab-panel hidden" id="tab-url">
+        <div class="border-2 border-dashed border-slate-700 rounded-xl p-6">
+          <p class="text-slate-400 text-sm font-medium mb-3">🔗 Paste an image URL — Django will download & save it</p>
+          <div class="flex gap-2">
+            <input type="url" id="url-input" placeholder="https://example.com/image.jpg" class="input-field flex-1"/>
+            <button type="button" id="url-preview-btn" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap">Preview</button>
+          </div>
+          <img id="url-preview" class="hidden mt-4 max-h-48 mx-auto rounded-lg border border-slate-600"/>
+          <p id="url-status" class="text-xs mt-2 hidden"></p>
+          <!-- Hidden input to send URL to Django -->
+          <input type="hidden" name="image_url" id="image_url_field"/>
+        </div>
+      </div>
+
+      <!-- TAB: Multiple -->
+      <div class="tab-panel hidden" id="tab-multiple">
+        <div class="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center">
+          <p class="text-slate-400 text-sm font-medium mb-1">🖼️ Select multiple images at once</p>
+          <p class="text-slate-600 text-xs mb-4">Hold Ctrl to select multiple files</p>
+          <input type="file" name="extra_images" accept="image/*" multiple id="multi-input" class="hidden"/>
+          <button type="button" id="multi-browse-btn" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">Browse Images</button>
+          <div id="multi-preview-grid" class="hidden mt-4 grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(80px, 1fr))"></div>
+          <p id="multi-label" class="text-green-400 text-xs font-medium mt-2 hidden"></p>
+        </div>
+      </div>
+
+    </div>
+    <!-- END IMAGE SECTION -->
+
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="btn-primary px-6 py-2.5 rounded-lg font-semibold flex-1">Save Note</button>
+      <a href="{% url 'note_list' %}" class="px-6 py-2.5 rounded-lg text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 transition-colors text-center">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<style>
+  .tab-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tab-btn.active {
+    background: #1e293b;
+    color: #fff;
+  }
+  .tab-btn:hover:not(.active) { color: #fff; }
+</style>
+
+<script>
+// ── Tab switching ──────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+  });
+});
+
+// ── Shared file input (used by drag/paste/webcam) ─────────
+const screenshotInput = document.getElementById('screenshot-input');
+
+function assignToScreenshot(file) {
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  screenshotInput.files = dt.files;
+}
+
+function showPreview(imgEl, labelEl, previewBox, placeholder, file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    imgEl.src = e.target.result;
+    if (labelEl) labelEl.textContent = '✅ ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+    placeholder.classList.add('hidden');
+    previewBox.classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── 1. Browse / Drag & Drop ───────────────────────────────
+const dropZone      = document.getElementById('drop-zone');
+const dropPlaceholder = document.getElementById('drop-placeholder');
+const dropPreviewBox  = document.getElementById('drop-preview-box');
+const dropPreview     = document.getElementById('drop-preview');
+const dropFileLabel   = document.getElementById('drop-file-label');
+const dropClear       = document.getElementById('drop-clear');
+
+dropZone.addEventListener('click', e => { if(e.target !== dropClear) screenshotInput.click(); });
+
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault(); e.stopPropagation();
+  dropZone.classList.add('border-indigo-500');
+});
+dropZone.addEventListener('dragleave', e => {
+  e.preventDefault();
+  dropZone.classList.remove('border-indigo-500');
+});
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); e.stopPropagation();
+  dropZone.classList.remove('border-indigo-500');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    assignToScreenshot(file);
+    showPreview(dropPreview, dropFileLabel, dropPreviewBox, dropPlaceholder, file);
+  } else {
+    alert('Please drop a valid image file.');
+  }
+});
+screenshotInput.addEventListener('change', () => {
+  if (screenshotInput.files[0])
+    showPreview(dropPreview, dropFileLabel, dropPreviewBox, dropPlaceholder, screenshotInput.files[0]);
+});
+dropClear.addEventListener('click', e => {
+  e.stopPropagation();
+  screenshotInput.value = '';
+  dropPreviewBox.classList.add('hidden');
+  dropPlaceholder.classList.remove('hidden');
+  dropZone.classList.remove('border-green-600');
+});
+
+// ── 2. Paste (Ctrl+V) ────────────────────────────────────
+const pasteZone        = document.getElementById('paste-zone');
+const pastePlaceholder = document.getElementById('paste-placeholder');
+const pastePreviewBox  = document.getElementById('paste-preview-box');
+const pastePreview     = document.getElementById('paste-preview');
+const pasteClear       = document.getElementById('paste-clear');
+
+pasteZone.addEventListener('focus', () => pasteZone.classList.add('border-indigo-500'));
+pasteZone.addEventListener('blur',  () => pasteZone.classList.remove('border-indigo-500'));
+
+document.addEventListener('paste', e => {
+  const activePanel = document.getElementById('tab-paste');
+  if (activePanel.classList.contains('hidden')) return;
+  const items = e.clipboardData.items;
+  for (let item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      const renamedFile = new File([file], 'paste_screenshot.png', { type: file.type });
+      assignToScreenshot(renamedFile);
+      const reader = new FileReader();
+      reader.onload = ev => {
+        pastePreview.src = ev.target.result;
+        pastePlaceholder.classList.add('hidden');
+        pastePreviewBox.classList.remove('hidden');
+      };
+      reader.readAsDataURL(renamedFile);
+      break;
+    }
+  }
+});
+
+pasteClear.addEventListener('click', () => {
+  screenshotInput.value = '';
+  pastePreviewBox.classList.add('hidden');
+  pastePlaceholder.classList.remove('hidden');
+});
+
+// ── 3. Webcam ─────────────────────────────────────────────
+const video           = document.getElementById('webcam-video');
+const canvas          = document.getElementById('webcam-canvas');
+const webcamPreview   = document.getElementById('webcam-preview');
+const webcamPlaceholder = document.getElementById('webcam-placeholder');
+const webcamControls  = document.getElementById('webcam-controls');
+const webcamRetake    = document.getElementById('webcam-retake-controls');
+const startBtn        = document.getElementById('webcam-start');
+const captureBtn      = document.getElementById('webcam-capture');
+const stopBtn         = document.getElementById('webcam-stop');
+const retakeBtn       = document.getElementById('webcam-retake');
+let stream = null;
+
+startBtn.addEventListener('click', async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+    video.classList.remove('hidden');
+    webcamPlaceholder.classList.add('hidden');
+    webcamControls.classList.remove('hidden');
+  } catch(err) {
+    alert('Cannot access webcam: ' + err.message);
+  }
+});
+
+captureBtn.addEventListener('click', () => {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.toBlob(blob => {
+    const file = new File([blob], 'webcam_photo.jpg', { type: 'image/jpeg' });
+    assignToScreenshot(file);
+    webcamPreview.src = canvas.toDataURL('image/jpeg');
+    webcamPreview.classList.remove('hidden');
+    video.classList.add('hidden');
+    webcamControls.classList.add('hidden');
+    webcamRetake.classList.remove('hidden');
+  }, 'image/jpeg', 0.92);
+  if (stream) stream.getTracks().forEach(t => t.stop());
+});
+
+stopBtn.addEventListener('click', () => {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  video.classList.add('hidden');
+  webcamControls.classList.add('hidden');
+  webcamPlaceholder.classList.remove('hidden');
+});
+
+retakeBtn.addEventListener('click', async () => {
+  webcamPreview.classList.add('hidden');
+  webcamRetake.classList.add('hidden');
+  screenshotInput.value = '';
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+    video.classList.remove('hidden');
+    webcamControls.classList.remove('hidden');
+  } catch(err) {
+    webcamPlaceholder.classList.remove('hidden');
+  }
+});
+
+// ── 4. Image from URL ─────────────────────────────────────
+const urlInput      = document.getElementById('url-input');
+const urlPreviewBtn = document.getElementById('url-preview-btn');
+const urlPreview    = document.getElementById('url-preview');
+const urlStatus     = document.getElementById('url-status');
+const urlField      = document.getElementById('image_url_field');
+
+urlPreviewBtn.addEventListener('click', () => {
+  const url = urlInput.value.trim();
+  if (!url) { alert('Please enter an image URL.'); return; }
+  urlPreview.src = url;
+  urlPreview.classList.remove('hidden');
+  urlPreview.onload = () => {
+    urlField.value = url;
+    urlStatus.textContent = '✅ Image loaded — will be saved when you submit.';
+    urlStatus.className = 'text-xs mt-2 text-green-400';
+    urlStatus.classList.remove('hidden');
+  };
+  urlPreview.onerror = () => {
+    urlStatus.textContent = '❌ Could not load image. Check the URL.';
+    urlStatus.className = 'text-xs mt-2 text-red-400';
+    urlStatus.classList.remove('hidden');
+    urlPreview.classList.add('hidden');
+    urlField.value = '';
+  };
+});
+
+// ── 5. Multiple Images ────────────────────────────────────
+const multiInput      = document.getElementById('multi-input');
+const multiBrowseBtn  = document.getElementById('multi-browse-btn');
+const multiGrid       = document.getElementById('multi-preview-grid');
+const multiLabel      = document.getElementById('multi-label');
+
+multiBrowseBtn.addEventListener('click', () => multiInput.click());
+
+multiInput.addEventListener('change', () => {
+  const files = Array.from(multiInput.files);
+  if (!files.length) return;
+  multiGrid.innerHTML = '';
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      img.style.cssText = 'width:100%;height:80px;object-fit:cover;border-radius:6px;border:1px solid #334155;';
+      multiGrid.appendChild(img);
+    };
+    reader.readAsDataURL(file);
+  });
+  multiGrid.classList.remove('hidden');
+  multiLabel.textContent = '✅ ' + files.length + ' image(s) selected';
+  multiLabel.classList.remove('hidden');
+});
+</script>
+{% endblock %}
